@@ -1,5 +1,9 @@
 # Próba profilu Pentium II w QEMU
 
+Pełny test użytkowego systemu i porównanie Dillo/WebKitGTK opisuje
+[FULL-SYSTEM.md](FULL-SYSTEM.md). Poniżej pozostaje mała próba samego
+kernela, CPU i RAM.
+
 To mały test uruchomienia kernela 32-bitowego, BusyBoxa i inwentaryzacji.
 Gość ma procesor `pentium2`, jeden CPU i 384 MiB RAM. Wykorzystuje TCG,
 nie ma sieci, dysku ani pulpitu. Nie uruchamia jeszcze przeglądarki.

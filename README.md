@@ -15,9 +15,12 @@ z plikiem INSTALACJA.txt. GUI uruchamiaj jako zwykły użytkownik sesji graficzn
 Po wydaniu 0.1.1 dodaliśmy [test profilu P2 w QEMU](emulation/README.md)
 oraz pomiar PSS w monitorze pamięci. Analizę zgodności CPU i dalsze kryteria
 wyboru silnika opisuje [etap P2](docs/p2-feasibility.md).
-Wykonane próby i pierwsze pomiary opisuje [raport etapu P2](docs/p2-validation.md).
-Test QEMU obejmuje na razie kernel, CPU i RAM w minimalnym initramfs;
-nie uruchamia jeszcze przeglądarki. Zrzut użytkownika przedstawia próbę na VM.
+Pierwsze próby opisuje [raport etapu P2](docs/p2-validation.md).
+W pełnym gościu i386 z profilem Pentium II i 384 MiB RAM uruchomiliśmy już
+Dillo oraz prototyp WebKitGTK; lokalny formularz JS i Flexbox działają
+w WebKitGTK. Wyniki pamięci, obrazy i granice próby zawiera
+[porównanie przeglądarek](docs/p2-browser-comparison.md).
+Zrzut przesłany przez użytkownika przedstawiał osobną próbę na VM amd64.
 
 Gotowe paczki i archiwa w `dist/` zachowują zawartość wydania 0.1.1.
 Nowe narzędzia są dostępne w źródłach na `main`, niezależnie od tych paczek.

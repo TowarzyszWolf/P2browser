@@ -90,3 +90,6 @@ przeglądarki pozostają otwarte. Kolejny eksperyment wymaga pełnego gościa
 z Xorg i porównania Dillo z kandydatem WebKitGTK i386 na tej samej stronie.
 Wybór utrzymywanego silnika bez SSE2 musi uwzględnić ograniczenia opisane
 w [ocenie wykonalności](p2-feasibility.md).
+
+Pełny eksperyment wykonano w kolejnym etapie; wyniki i obrazy zawiera
+[porównanie Dillo i WebKitGTK](p2-browser-comparison.md).

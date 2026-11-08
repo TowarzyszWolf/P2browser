@@ -5,6 +5,8 @@ Użytkownik potwierdził, że ostatni zrzut działającego programu pochodzi
 z maszyny wirtualnej. Fizyczny Pentium II jest obecnie niedostępny.
 
 Wykonane próby oraz pomiary opisuje [p2-validation.md](p2-validation.md).
+Kolejny etap z pełnym gościem i przeglądarkami opisuje
+[p2-browser-comparison.md](p2-browser-comparison.md).
 
 ## Co można sprawdzić bez komputera użytkownika
 

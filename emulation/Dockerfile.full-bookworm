@@ -1,0 +1,99 @@
+# syntax=docker/dockerfile:1
+# Build actual i386 userspace without native IA32 or global binfmt support.
+# PRoot/QEMU user is only for building; the test uses full-system QEMU TCG.
+
+FROM --platform=linux/386 i386/debian:bookworm-slim AS i386root
+FROM --platform=linux/amd64 amd64/debian:bookworm-slim AS buildbase
+RUN --mount=type=secret,id=proxy_ca,target=/run/secrets/proxy_ca \
+    set -eu; \
+    apt-get update; \
+    apt-get install -y --no-install-recommends qemu-user-static curl ca-certificates; \
+    if [ -f /run/secrets/proxy_ca ]; then \
+      curl --cacert /run/secrets/proxy_ca -fL --retry 2 \
+        https://github.com/proot-me/proot/releases/download/v5.5.0/proot -o /usr/local/bin/proot; \
+    else \
+      curl -fL --retry 2 https://github.com/proot-me/proot/releases/download/v5.5.0/proot -o /usr/local/bin/proot; \
+    fi; \
+    printf 'db185300a9daabbce86aca7632d8c7fdc4249f6f153171954013b70c5f491ec0  /usr/local/bin/proot\n' | sha256sum -c -; \
+    chmod 755 /usr/local/bin/proot; \
+    rm -rf /var/lib/apt/lists/*; mkdir -p /run/secrets
+COPY --from=i386root / /guest/
+ENV PROOT_NO_SECCOMP=1 PROOT_FORCE_FOREIGN_BINARY=1
+COPY emulation/install-i386-packages.sh /usr/local/bin/p2-install-i386
+
+FROM buildbase AS compile
+RUN --mount=type=secret,id=proxy_ca,target=/run/secrets/proxy_ca \
+    --mount=type=cache,target=/guest/var/cache/apt/archives,id=p2-compile-i386-archives \
+    sh /usr/local/bin/p2-install-i386 \
+    build-essential pkg-config libgtk-3-dev libwebkit2gtk-4.1-dev ca-certificates
+SHELL ["proot", "-q", "/usr/bin/qemu-i386-static", "-r", "/guest", "-b", "/dev", "-b", "/proc", "-b", "/sys", "-b", "/tmp", "-b", "/etc/resolv.conf", "-b", "/run/secrets", "-b", "/usr/bin/qemu-i386-static", "-w", "/", "/bin/sh", "-c"]
+RUN test "$(dpkg --print-architecture)" = i386
+COPY Makefile /guest/src/Makefile
+COPY src /guest/src/src
+COPY emulation/case-supervisor.c /guest/src/case-supervisor.c
+RUN cd /src && make CFLAGS='-Os -g1 -march=pentium2 -mno-sse -mno-sse2 -mfpmath=387' \
+    && cc -std=c99 -Wall -Wextra -Os -march=pentium2 -mno-sse -mno-sse2 -mfpmath=387 \
+       case-supervisor.c -o build/case-supervisor \
+    && dpkg-query -W -f='${binary:Package}\t${Version}\t${Architecture}\n' \
+       gcc libc6 libgtk-3-0 libwebkit2gtk-4.1-0 libjavascriptcoregtk-4.1-0 \
+       > /src/build/compile-packages.tsv
+
+FROM buildbase AS guest
+ENV DEBIAN_FRONTEND=noninteractive
+RUN --mount=type=secret,id=proxy_ca,target=/run/secrets/proxy_ca \
+    --mount=type=cache,target=/guest/var/cache/apt/archives,id=p2-guest-i386-archives \
+    sh /usr/local/bin/p2-install-i386 \
+      linux-image-686 initramfs-tools busybox-static \
+      libgtk-3-0 libwebkit2gtk-4.1-0 libjavascriptcoregtk-4.1-0 \
+      dillo xvfb xauth dbus-x11 procps util-linux \
+      imagemagick x11-utils xdotool x11-apps fonts-dejavu-core python3 \
+      ca-certificates
+SHELL ["proot", "-q", "/usr/bin/qemu-i386-static", "-r", "/guest", "-b", "/dev", "-b", "/proc", "-b", "/sys", "-b", "/tmp", "-b", "/etc/resolv.conf", "-b", "/run/secrets", "-b", "/usr/bin/qemu-i386-static", "-w", "/", "/bin/sh", "-c"]
+RUN set -eu; \
+    useradd --uid 1000 --create-home --shell /bin/sh p2test; \
+    mkdir -p /opt/p2browser/build /opt/p2browser/fixtures /opt/p2browser/tools \
+      /results /run /proc /sys /dev /tmp; \
+    chmod 1777 /tmp; \
+    chown p2test:p2test /results; \
+    printf 'p2-emulated\n' > /etc/hostname; \
+    printf '127.0.0.1 localhost p2-emulated\n' > /etc/hosts; \
+    printf 'kernel.unprivileged_userns_clone = 1\n' > /etc/sysctl.d/80-p2-experiment.conf; \
+    dpkg-query -W -f='${binary:Package}\t${Version}\t${Architecture}\n' \
+      > /opt/p2browser/runtime-packages.tsv
+COPY . /guest/opt/p2browser/
+COPY --from=compile /guest/src/build/ /guest/opt/p2browser/build/
+RUN set -eu; \
+    cp /opt/p2browser/emulation/full-guest-init.sh /usr/local/sbin/p2-full-init; \
+    cp /opt/p2browser/emulation/guest-benchmark.sh /usr/local/bin/p2-full-benchmark; \
+    cp /opt/p2browser/build/compile-packages.tsv /opt/p2browser/compile-packages.tsv; \
+    chmod -R a+rX /opt/p2browser; \
+    chmod 755 /usr/local/sbin/p2-full-init /usr/local/bin/p2-full-benchmark \
+      /opt/p2browser/build/p2browser-probe /opt/p2browser/tools/*.sh; \
+    ln -s /opt/p2browser/build/p2browser-probe /usr/bin/p2browser-probe; \
+    ln -s /opt/p2browser/tools/monitor.sh /usr/local/bin/p2browser-monitor; \
+    ln -s /opt/p2browser/tools/collect-report.sh /usr/local/bin/p2browser-collect-report; \
+    mkdir -p /usr/share/p2browser-probe; \
+    cp /opt/p2browser/fixtures/start.html /usr/share/p2browser-probe/start.html; \
+    p2_kernel=$(find /lib/modules -mindepth 1 -maxdepth 1 -type d -name '*-686' -printf '%f\n'); \
+    test "$(printf '%s\n' "$p2_kernel" | wc -l)" -eq 1; \
+    test -n "$p2_kernel"; \
+    test -s "/boot/vmlinuz-$p2_kernel"; \
+    test -s "/boot/initrd.img-$p2_kernel"
+
+FROM --platform=linux/amd64 amd64/debian:bookworm-slim AS image
+RUN --mount=type=secret,id=proxy_ca,target=/run/secrets/proxy_ca \
+    set -eu; \
+    if [ -f /run/secrets/proxy_ca ]; then \
+      printf 'Acquire::https::CaInfo "/run/secrets/proxy_ca";\n' > /tmp/p2-apt.conf; \
+    else : > /tmp/p2-apt.conf; fi; \
+    apt-get -c /tmp/p2-apt.conf update; \
+    apt-get -c /tmp/p2-apt.conf install -y --no-install-recommends \
+      qemu-system-x86 qemu-utils e2fsprogs util-linux python3 gzip xz-utils \
+      ca-certificates; \
+    rm -rf /var/lib/apt/lists/* /tmp/p2-apt.conf
+COPY emulation/build-full-image.sh /usr/local/bin/p2-build-full-image
+COPY --chmod=0755 emulation/run-full-check.sh /usr/local/bin/p2-full-run
+COPY --chmod=0755 emulation/full-guest-init.sh emulation/guest-benchmark.sh /opt/p2-harness/
+COPY --from=guest /guest/ /guest/
+RUN sh /usr/local/bin/p2-build-full-image /guest /artifacts && rm -rf /guest
+CMD ["sh", "/usr/local/bin/p2-full-run"]

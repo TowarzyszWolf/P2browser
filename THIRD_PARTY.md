@@ -62,6 +62,17 @@ gotowego obrazu testowego wymaga spełnienia licencji jego komponentów, w tym
 obowiązków dotyczących odpowiadających im źródeł; ten etap publikuje instrukcje
 i własne skrypty, nie obraz kontenera.
 
+Pełny eksperyment opisany w [emulation/FULL-SYSTEM.md](emulation/FULL-SYSTEM.md)
+wykorzystuje dodatkowo osobną aplikację Dillo z biblioteką FLTK, Xvfb, D-Bus,
+narzędzia X11, ImageMagick oraz e2fsprogs. Ich licencje i odpowiadające źródła
+określają właściwe pakiety Debiana. Dillo pozostaje narzędziem porównawczym;
+jego kod nie jest częścią naszego programu. PRoot 5.5.0 (GPLv2 lub nowsza)
+i QEMU user są narzędziami budowania, poza mierzonym systemem gościa.
+Dockerfile przypina [wydanie PRoot](https://github.com/proot-me/proot/releases/tag/v5.5.0)
+oraz sprawdza sumę SHA-256 binarium upstream. Repozytorium nie dołącza tego
+binarium; źródła udostępnia projekt PRoot. Własny nadzorca procesów w C
+i skrypty testu są objęte licencją MIT projektu P2Browser.
+
 Wszystkie zachowują własne licencje, dostarczane przez odpowiednie pakiety
 lub producentów. Używanie obrazu Debiana do budowania nie oznacza dołączenia
 całej dystrybucji do paczki programu.
