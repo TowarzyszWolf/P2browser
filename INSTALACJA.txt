@@ -1,0 +1,43 @@
+P2Browser 0.1.1 — Debian 13 Trixie amd64
+
+Komplet zawiera:
+  p2browser-diagnostics_0.1.1_all.deb
+  p2browser-probe_0.1.1_amd64-trixie.deb
+  p2browser-source_0.1.1.tar.gz
+  SHA256SUMS
+
+1. Rozpakuj archiwum i wejdź do katalogu z powyższymi plikami.
+
+2. W terminalu administratora (root) wykonaj:
+
+   apt update
+   apt install ./p2browser-diagnostics_0.1.1_all.deb ./p2browser-probe_0.1.1_amd64-trixie.deb
+
+   Obie paczki podaj w jednym poleceniu. Pakiet diagnostyczny jest lokalnym
+   składnikiem projektu i nie znajduje się w repozytoriach Debiana.
+   Jeśli korzystasz z konta z uprawnieniami sudo, poprzedź polecenia przez sudo.
+
+3. Z terminala zwykłego użytkownika w sesji graficznej, bez sudo, uruchom:
+
+   p2browser-probe
+
+   Informacja o wersji, bez otwierania okna:
+
+   p2browser-probe --version
+
+Ta kompilacja jest natywna dla amd64 Debiana 13. Nie wymaga włączania i386,
+zmiany repozytoriów na Debian 12 ani wymuszania pominięcia zależności.
+Zastępuje wcześniejszą paczkę 0.1.0 i386-bookworm przy testach na amd64/Trixie.
+Nie jest przeznaczona na Pentium II.
+
+Program jest prototypem pomiarowym z jednym widokiem strony. Domyślnie JS
+i obrazy są wyłączone; można je włączyć przyciskami i odświeżyć stronę.
+Nie są jeszcze gotowe wszystkie funkcje docelowej przeglądarki.
+
+Wydanie 0.1.1 odtworzono z kodu i ustaleń zachowanych w rozmowie po zmianie
+środowiska. Nie jest identyczną bajtowo kopią archiwum 0.1.0.
+Kod, dokumentacja wymagań, licencja MIT i wykaz zależności są w archiwum źródeł.
+
+Kontrola pobranych plików:
+
+   sha256sum -c SHA256SUMS

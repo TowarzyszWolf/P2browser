@@ -1,0 +1,11 @@
+[Desktop Entry]
+Type=Application
+Name=P2Browser Probe
+Name[pl]=P2Browser — prototyp diagnostyczny
+Comment=Experimental local browser engine probe
+Comment[pl]=Lokalny prototyp do sprawdzania silnika przeglądarki
+Exec=p2browser-probe
+Icon=web-browser
+Terminal=false
+Categories=Development;Network;WebBrowser;
+StartupNotify=true

@@ -1,0 +1,13 @@
+# syntax=docker/dockerfile:1
+# Native amd64 Debian 13 build/test environment. No cross-build or binfmt needed.
+FROM debian:trixie-slim
+
+RUN apt-get update \
+    && apt-get install -y --no-install-recommends \
+        build-essential pkg-config libgtk-3-dev libwebkit2gtk-4.1-dev dpkg-dev \
+        python3 xvfb xauth dbus-x11 librsvg2-common ca-certificates \
+    && useradd --uid 1000 --create-home --shell /bin/sh p2test \
+    && rm -rf /var/lib/apt/lists/*
+
+WORKDIR /work
+CMD ["make", "deb"]

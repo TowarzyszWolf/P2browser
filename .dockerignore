@@ -1,0 +1,10 @@
+.git
+build
+dist
+**/__pycache__
+**/*.pyc
+**/*.pyo
+.env*
+**/.env*
+core
+core.*
