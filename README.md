@@ -10,6 +10,18 @@
 Po rozpakowaniu kompletu instaluj **obie paczki w jednym poleceniu** zgodnie
 z plikiem INSTALACJA.txt. GUI uruchamiaj jako zwykły użytkownik sesji graficznej.
 
+## Bieżące prace w źródłach na main
+
+Po wydaniu 0.1.1 dodaliśmy [test profilu P2 w QEMU](emulation/README.md)
+oraz pomiar PSS w monitorze pamięci. Analizę zgodności CPU i dalsze kryteria
+wyboru silnika opisuje [etap P2](docs/p2-feasibility.md).
+Wykonane próby i pierwsze pomiary opisuje [raport etapu P2](docs/p2-validation.md).
+Test QEMU obejmuje na razie kernel, CPU i RAM w minimalnym initramfs;
+nie uruchamia jeszcze przeglądarki. Zrzut użytkownika przedstawia próbę na VM.
+
+Gotowe paczki i archiwa w `dist/` zachowują zawartość wydania 0.1.1.
+Nowe narzędzia są dostępne w źródłach na `main`, niezależnie od tych paczek.
+
 Wydanie 0.1.1 zostało **przygotowane ponownie na podstawie kodu i ustaleń
 z rozmowy** po zmianie środowiska. Nie jest deklaracją identycznego bajtowo
 odtworzenia dawnych plików lub pakietów 0.1.0.
@@ -147,6 +159,14 @@ systemu. **Suma RSS wielokrotnie liczy współdzielone strony pamięci; nie jest
 unikalnym zużyciem RAM.** Dane są próbkami zmieniającego się drzewa procesów.
 Brakujące dane mają być oznaczone jako nieznane, a nie jako zużycie zerowe.
 Skrypty nie nakładają limitów i nie zmieniają konfiguracji swapu.
+
+Rozwojowy `sh tools/monitor.sh PID NOWY_PLIK.tsv SEKUNDY` na `main` dopisuje
+kolumny `sum_pss_kib` i `pss_unreadable_processes`. PSS proporcjonalnie dzieli
+współdzielone strony, zamiast liczyć je w całości dla każdego procesu.
+Jeśli brakuje PSS któregokolwiek wybranego żywego procesu, suma wynosi `NA`.
+Na nowszych kernelach czytany jest `smaps_rollup`, na starszych `smaps`.
+Odczyt starszego formatu może zwiększać koszt monitorowania. Pierwsze siedem
+kolumn pozostaje zgodne z monitorem z wydania 0.1.1; dwie nowe są na końcu.
 
 Inwentaryzacja wybiera dane CPU, pamięci, GPU i wersji pakietów. Nie zbiera
 nazwy komputera, loginu, numerów seryjnych, konfiguracji sieci, URL ani linii

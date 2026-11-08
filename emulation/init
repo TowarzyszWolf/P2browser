@@ -1,0 +1,49 @@
+#!/bin/sh
+# PID 1 in a minimal, offline guest, not a full Debian installation.
+PATH=/bin
+export PATH
+
+fail() {
+    printf 'P2BOOTFAIL: %s\n' "$1"
+    /bin/busybox poweroff -f
+    while :; do :; done
+}
+
+mount -t proc proc /proc || fail 'cannot mount proc'
+mount -t sysfs sysfs /sys || fail 'cannot mount sysfs'
+mount -t devtmpfs devtmpfs /dev || fail 'cannot mount devtmpfs'
+
+printf '\nP2 boot-check: minimal guest; no browser or desktop is running.\n'
+printf 'Guest package provenance:\n'
+cat /packages.txt || fail 'cannot read package versions'
+
+awk -F: '
+    /^processor[[:space:]]*:/ { processors++ }
+    /^cpu family[[:space:]]*:/ { family=$2+0 }
+    /^model[[:space:]]*:/ { model=$2+0 }
+    /^flags[[:space:]]*:/ {
+        flags_seen++
+        n=split($2, flag, /[[:space:]]+/)
+        for (i=1; i<=n; i++)
+            if (flag[i] == "sse" || flag[i] == "sse2" || flag[i] == "lm") forbidden++
+    }
+    END {
+        if (processors != 1 || family != 6 || model != 5 || flags_seen != 1 || forbidden) exit 1
+        print "CPU profile: one family-6/model-5 CPU; no SSE, SSE2, or long mode."
+    }
+' /proc/cpuinfo || fail 'unexpected CPU profile'
+
+awk '
+    /^MemTotal:/ { total=$2+0 }
+    END {
+        if (total < 350000 || total > 393216) exit 1
+        printf "Usable guest MemTotal: %d KiB (QEMU configured with 384 MiB).\n", total
+    }
+' /proc/meminfo || fail 'unexpected memory size'
+
+sh /collect-report.sh /tmp/p2-inventory || fail 'inventory script failed'
+cat /tmp/p2-inventory/report.txt || fail 'cannot read inventory report'
+
+printf '\nP2BOOTPASS\n'
+poweroff -f
+while :; do :; done

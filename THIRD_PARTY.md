@@ -52,6 +52,16 @@ Narzędzia środowiska budowania, niedołączane do paczki przeglądarki:
 - QEMU — opcjonalna emulacja, z ograniczeniami opisanymi w README;
 - Docker i obraz Debian Trixie — opcjonalne środowisko budowania.
 
+Test w `emulation/` używa ponadto obrazu Debian Bookworm, QEMU, kernela Linux
+`linux-image-*-686:i386` oraz `busybox-static:i386`. Linux i BusyBox są na GPLv2,
+a QEMU zasadniczo na GPLv2 z licencjami poszczególnych części; pełne informacje
+pochodzą z pakietów dystrybucji. Budowanie pobiera i rozpakowuje pakiety do
+lokalnego obrazu. Repozytorium nie dołącza tych binariów ani gotowego initramfs.
+Wersje faktycznie użyte w gościu są wypisywane podczas próby. Rozpowszechnianie
+gotowego obrazu testowego wymaga spełnienia licencji jego komponentów, w tym
+obowiązków dotyczących odpowiadających im źródeł; ten etap publikuje instrukcje
+i własne skrypty, nie obraz kontenera.
+
 Wszystkie zachowują własne licencje, dostarczane przez odpowiednie pakiety
 lub producentów. Używanie obrazu Debiana do budowania nie oznacza dołączenia
 całej dystrybucji do paczki programu.

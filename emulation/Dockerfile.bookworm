@@ -1,0 +1,35 @@
+# syntax=docker/dockerfile:1
+# Build from the repository root. The build machine is amd64; only the guest
+# kernel and BusyBox come from i386. No foreign architecture is added to the host.
+FROM --platform=linux/amd64 debian:bookworm-slim
+
+RUN --mount=type=secret,id=proxy_ca,target=/run/secrets/proxy_ca \
+    set -eu; \
+    if [ -f /run/secrets/proxy_ca ]; then \
+      printf 'Acquire::https::CaInfo "/run/secrets/proxy_ca";\n' > /tmp/p2-apt.conf; \
+    else : > /tmp/p2-apt.conf; fi; \
+    dpkg --add-architecture i386; \
+    apt-get -c /tmp/p2-apt.conf update; \
+    apt-get -c /tmp/p2-apt.conf install -y --no-install-recommends \
+      qemu-system-x86 python3 ca-certificates; \
+    mkdir -p /opt/p2 /tmp/p2-packages /tmp/p2-unpacked; \
+    cd /tmp/p2-packages; \
+    p2_kernel_package=$(apt-cache depends linux-image-686:i386 | \
+      awk '$1 == "Depends:" && $2 ~ /^linux-image-[0-9].*-686(:i386)?$/ { sub(/:i386$/, "", $2); print $2; exit }'); \
+    test -n "$p2_kernel_package"; \
+    apt-get -c /tmp/p2-apt.conf download busybox-static:i386 "$p2_kernel_package:i386"; \
+    for p2_package in ./*.deb; do \
+      dpkg-deb -f "$p2_package" Package Version Architecture >> /opt/p2/packages.txt; \
+      dpkg-deb -x "$p2_package" /tmp/p2-unpacked; \
+    done; \
+    cp /tmp/p2-unpacked/bin/busybox /opt/p2/busybox; \
+    cp /tmp/p2-unpacked/boot/vmlinuz-*-686 /opt/p2/vmlinuz; \
+    rm -rf /tmp/p2-packages /tmp/p2-unpacked /var/lib/apt/lists/* /tmp/p2-apt.conf
+
+COPY emulation/build-initramfs.py emulation/init emulation/run-check.sh /opt/p2/
+COPY tools/collect-report.sh /opt/p2/collect-report.sh
+
+RUN python3 /opt/p2/build-initramfs.py /opt/p2/initramfs.cpio.gz \
+    && chmod 755 /opt/p2/run-check.sh
+
+CMD ["/opt/p2/run-check.sh"]

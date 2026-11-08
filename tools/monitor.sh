@@ -1,6 +1,7 @@
 #!/bin/sh
 # Sample a Linux process and its descendants without reading command lines.
 # sum_rss_kib double-counts shared pages: it is NOT unique physical memory.
+# PSS apportions shared pages; a tree total is reported only when complete.
 # P2B_PROC_ROOT can select a procfs snapshot for repeatable parser tests.
 set -u
 umask 077
@@ -44,10 +45,11 @@ set -C
 exec 3> "$p2_output"
 set +C
 if ! {
-    printf '%s\n' '# P2Browser process-tree samples v1' \
+    printf '%s\n' '# P2Browser process-tree samples v2' \
         '# sum_rss_kib double-counts shared pages; samples are best-effort snapshots.' \
-        '# NA means unavailable; unreadable_processes means sums may be incomplete.'
-    printf 'elapsed_seconds\tprocesses\tunreadable_processes\tsum_rss_kib\tsum_vmswap_kib\tmem_available_kib\tswap_free_kib\n'
+        '# NA means unavailable; unreadable_processes means RSS/swap sums may be incomplete.' \
+        '# sum_pss_kib apportions shared pages and is NA if any counted process lacks PSS.'
+    printf 'elapsed_seconds\tprocesses\tunreadable_processes\tsum_rss_kib\tsum_vmswap_kib\tmem_available_kib\tswap_free_kib\tsum_pss_kib\tpss_unreadable_processes\n'
 } >&3; then
     printf '%s\n' 'Writing process samples failed.' >&2
     exit 74
@@ -88,6 +90,17 @@ while :; do
             current_parent=fields[2]; current_start=fields[20]; current_state=fields[1]
             return 1
         }
+        function readpss(path,    line,fields,n,result,total,found,invalid) {
+            while ((result=(getline line < path)) > 0) {
+                if (line ~ /^Pss:/) {
+                    n=split(line, fields, /[[:space:]]+/)
+                    if (n != 3 || fields[2] !~ /^[0-9]+$/ || fields[3] != "kB") invalid=1
+                    else { total+=fields[2]; found++ }
+                }
+            }
+            close(path)
+            return result >= 0 && found && !invalid ? sprintf("%.0f", total) : "NA"
+        }
         BEGIN {
             for (i=1; i<ARGC; i++) {
                 if (readstat(ARGV[i])) {
@@ -105,6 +118,8 @@ while :; do
                 }
             } while (changed)
             for (pid in selected) {
+                # A PID may have disappeared or been recycled since the tree scan.
+                if (!readstat(proc "/" pid "/stat") || current_start != start[pid] || current_state ~ /^[ZX]$/) continue
                 status=proc "/" pid "/status"
                 rss="NA"; swap="NA"; lines=0
                 while ((getline line < status) > 0) {
@@ -114,12 +129,18 @@ while :; do
                     if (field[1] == "VmSwap:" && field[2] ~ /^[0-9]+$/) swap=field[2]+0
                 }
                 close(status)
+                # rollup avoids parsing every mapping on newer kernels. Linux
+                # 4.9 (Debian 9) has only smaps, and some systems restrict both.
+                pss=readpss(proc "/" pid "/smaps_rollup")
+                if (pss == "NA") pss=readpss(proc "/" pid "/smaps")
                 # Discard recycled PIDs; process identities are not just PIDs.
                 if (!readstat(proc "/" pid "/stat") || current_start != start[pid] || current_state ~ /^[ZX]$/) continue
                 count++
                 if (!lines || rss == "NA" || swap == "NA") unreadable++
                 if (rss != "NA") { rss_sum+=rss; rss_count++ }
                 if (swap != "NA") { swap_sum+=swap; swap_count++ }
+                if (pss == "NA") pss_unreadable++
+                else { pss_sum+=pss; pss_count++ }
             }
             mem="NA"; swapfree="NA"
             while ((getline line < (proc "/meminfo")) > 0) {
@@ -128,9 +149,10 @@ while :; do
                 if (field[1] == "SwapFree:" && field[2] ~ /^[0-9]+$/) swapfree=field[2]
             }
             close(proc "/meminfo")
-            printf "%d\t%d\t%s\t%s\t%s\t%s\n", count, unreadable,
+            printf "%d\t%d\t%s\t%s\t%s\t%s\t%s\t%d\n", count, unreadable,
                 rss_count ? sprintf("%.0f", rss_sum) : "NA",
-                swap_count ? sprintf("%.0f", swap_sum) : "NA", mem, swapfree
+                swap_count ? sprintf("%.0f", swap_sum) : "NA", mem, swapfree,
+                pss_count && !pss_unreadable ? sprintf("%.0f", pss_sum) : "NA", pss_unreadable
             exit
         }
     ' "$p2_proc"/[0-9]*/stat)

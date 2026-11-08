@@ -105,10 +105,69 @@ class DiagnosticsTests(unittest.TestCase):
         self.assertEqual(result.returncode, 0, result.stderr)
         samples = self.samples(output)
         self.assertGreaterEqual(len(samples), 1)
-        self.assertEqual(samples[0][1:], ["4", "0", "100", "10", "200000", "400000"])
+        self.assertEqual(samples[0][1:7], ["4", "0", "100", "10", "200000", "400000"])
+        self.assertEqual(samples[0][7:], ["NA", "4"])
         self.assertEqual(stat.S_IMODE(output.stat().st_mode), 0o600)
         self.assertNotIn("PRIVATE_PROCESS_NAME", output.read_text())
         self.assertIn("double-counts", output.read_text())
+
+    def test_monitor_prefers_pss_rollup_and_preserves_zero(self):
+        self.process(100, 1, 10, 1)
+        self.process(101, 100, 20, 2)
+        for pid, pss in ((100, 7), (101, 0)):
+            location = self.proc / str(pid)
+            (location / "smaps_rollup").write_text(
+                f"00000000-ffffffff ---p 00000000 00:00 0 [rollup]\n"
+                f"Rss: 999 kB\nPss: {pss} kB\nPss_Anon: 888 kB\n")
+            (location / "smaps").write_text(
+                "00000000-00001000 r--p 00000000 00:00 0 /PRIVATE_MAPPING\n"
+                "Pss: 10000 kB\n")
+        output = self.root / "pss-rollup.tsv"
+        result = self.run_script(MONITOR, 100, output, 1)
+        self.assertEqual(result.returncode, 0, result.stderr)
+        sample = self.samples(output)[0]
+        self.assertEqual(sample[1:7], ["2", "0", "30", "3", "200000", "400000"])
+        self.assertEqual(sample[7:], ["7", "0"])
+        self.assertNotIn("PRIVATE_MAPPING", output.read_text())
+
+    def test_monitor_pss_falls_back_to_sum_of_smaps_mappings(self):
+        self.process(100, 1, 10, 1)
+        self.process(101, 100, 20, 2)
+        (self.proc / "100" / "smaps").write_text(
+            "00000000-00001000 r--p 00000000 00:00 0 /PRIVATE_FIRST\n"
+            "Pss: 4 kB\nPss_Dirty: 999 kB\n"
+            "00001000-00002000 rw-p 00000000 00:00 0 /PRIVATE_SECOND\n"
+            "Pss: 6 kB\n"
+            "00002000-00003000 rw-p 00000000 00:00 0\nPss: 0 kB\n")
+        # A rollup may exist but be unreadable/empty; smaps remains useful.
+        (self.proc / "101" / "smaps_rollup").write_text("")
+        (self.proc / "101" / "smaps").write_text("Pss: 8 kB\n")
+        output = self.root / "pss-smaps.tsv"
+        result = self.run_script(MONITOR, 100, output, 1)
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertEqual(self.samples(output)[0][7:], ["18", "0"])
+        self.assertNotIn("PRIVATE_", output.read_text())
+
+    def test_monitor_missing_pss_marks_tree_total_unavailable(self):
+        self.process(100, 1, 10, 1)
+        self.process(101, 100, 20, 2)
+        (self.proc / "100" / "smaps_rollup").write_text("Pss: 7 kB\n")
+        output = self.root / "pss-partial.tsv"
+        result = self.run_script(MONITOR, 100, output, 1)
+        self.assertEqual(result.returncode, 0, result.stderr)
+        # The known process cannot make a partial tree sum look complete.
+        self.assertEqual(self.samples(output)[0][7:], ["NA", "1"])
+
+    def test_monitor_rejects_malformed_pss_measurements(self):
+        self.process(100, 1, 10, 1)
+        for index, measurement in enumerate(("-1 kB", "wrong kB", "7 MB", "7")):
+            (self.proc / "100" / "smaps_rollup").write_text(f"Pss: {measurement}\n")
+            (self.proc / "100" / "smaps").write_text(
+                f"Pss: 3 kB\nPss: {measurement}\n")
+            output = self.root / f"pss-invalid-{index}.tsv"
+            result = self.run_script(MONITOR, 100, output, 1)
+            self.assertEqual(result.returncode, 0, result.stderr)
+            self.assertEqual(self.samples(output)[0][7:], ["NA", "1"])
 
     def test_monitor_invalid_pid_duration_and_existing_output(self):
         output = self.root / "samples.tsv"
