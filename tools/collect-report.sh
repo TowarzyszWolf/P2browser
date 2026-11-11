@@ -75,7 +75,7 @@ if ! {
     fi
     printf '\n[known_packages]\n'
     if command -v dpkg-query >/dev/null 2>&1; then
-        for p2_package in dillo libglib2.0-0 libglib2.0-0t64 libgtk-3-0 libgtk-3-0t64 libwebkit2gtk-4.0-37 libwebkit2gtk-4.1-0 libwebkitgtk-6.0-4 libjavascriptcoregtk-4.0-18 libjavascriptcoregtk-4.1-0; do
+        for p2_package in dillo libglib2.0-0 libglib2.0-0t64 libgtk-3-0 libgtk-3-0t64 libwebkit2gtk-4.0-37 libwebkit2gtk-4.1-0 libwebkitgtk-6.0-4 libjavascriptcoregtk-4.0-18 libjavascriptcoregtk-4.1-0 libgstreamer1.0-0 gstreamer1.0-plugins-base gstreamer1.0-plugins-good gstreamer1.0-plugins-bad gstreamer1.0-plugins-ugly gstreamer1.0-libav; do
             p2_version=$(dpkg-query -W -f='${db:Status-Status}\t${Version}\t${Architecture}\n' "$p2_package" 2>/dev/null) || p2_version=
             case $p2_version in
                 installed*) printf '%s\t%s\n' "$p2_package" "$p2_version" ;;

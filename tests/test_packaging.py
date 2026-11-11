@@ -13,7 +13,7 @@ import unittest
 
 
 PROJECT = Path(__file__).resolve().parents[1]
-VERSION = "0.2.0~alpha1"
+VERSION = re.search(r"^VERSION\s*\?=\s*(\S+)", (PROJECT / "Makefile").read_text(), re.M).group(1)
 
 
 @unittest.skipUnless(shutil.which("dpkg-deb") and shutil.which("tar"), "Debian packaging tools required")

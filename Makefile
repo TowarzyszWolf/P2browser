@@ -1,4 +1,4 @@
-VERSION ?= 0.2.0~alpha1
+VERSION ?= 0.2.0~alpha2
 CC ?= cc
 PKG_CONFIG ?= pkg-config
 PYTHON ?= python3

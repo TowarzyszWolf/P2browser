@@ -1,9 +1,9 @@
-P2Browser 0.2.0~alpha1 — Debian 13 Trixie amd64
+P2Browser 0.2.0~alpha2 — Debian 13 Trixie amd64
 
 Komplet zawiera:
-  p2browser-diagnostics_0.2.0~alpha1_all.deb
-  p2browser-probe_0.2.0~alpha1_amd64-trixie.deb
-  p2browser-source_0.2.0~alpha1.tar.gz
+  p2browser-diagnostics_0.2.0~alpha2_all.deb
+  p2browser-probe_0.2.0~alpha2_amd64-trixie.deb
+  p2browser-source_0.2.0~alpha2.tar.gz
   SHA256SUMS
 
 1. Rozpakuj archiwum i wejdź do katalogu z powyższymi plikami.
@@ -11,7 +11,7 @@ Komplet zawiera:
 2. W terminalu administratora (root) wykonaj:
 
    apt update
-   apt install ./p2browser-diagnostics_0.2.0~alpha1_all.deb ./p2browser-probe_0.2.0~alpha1_amd64-trixie.deb
+   apt install ./p2browser-diagnostics_0.2.0~alpha2_all.deb ./p2browser-probe_0.2.0~alpha2_amd64-trixie.deb
 
    Obie paczki podaj w jednym poleceniu. Pakiet diagnostyczny jest lokalnym
    składnikiem projektu i nie znajduje się w repozytoriach Debiana.
@@ -35,6 +35,13 @@ Odciążanie kart oznacza przeładowanie i utratę niezapisanego stanu.
 Budżet PSS nie jest twardym limitem RAM; swapem zarządza Linux. Domyślnie JS
 i obrazy są wyłączone; można je włączyć przyciskami i odświeżyć stronę.
 Nie są jeszcze gotowe wszystkie funkcje docelowej przeglądarki.
+
+Alpha2 dodaje komunikat awarii karty i dokładniejszy raport. Nie jest jeszcze
+potwierdzoną naprawą zgłoszonej awarii YouTube. Opcjonalna próba diagnostyczna:
+
+   p2browser-probe --javascript --images --video-compat
+
+Ta opcja wyłącza wyjście GL/DMA-BUF wideo; nie wymusza kodeka ani dekodera.
 
 Kod, dokumentacja wymagań, licencja MIT i wykaz zależności są w archiwum źródeł.
 

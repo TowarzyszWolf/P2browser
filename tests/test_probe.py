@@ -159,6 +159,30 @@ class ProbeGuiTests(unittest.TestCase):
             self.assertNotIn(token, events)
             self.assertNotIn(page.as_uri(), events)
 
+    def test_unsupported_media_is_reported_without_page_crash_or_private_text(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            folder = Path(tmp)
+            token = "PRIVATE-MEDIA-DO-NOT-LOG"
+            page = folder / (token + ".html")
+            page.write_text(
+                "<!doctype html><meta charset='utf-8'>"
+                "<video controls src='data:video/x-p2-unsupported;base64,AA=='></video>"
+                "<script>document.querySelector('video').load()</script>",
+                encoding="utf-8",
+            )
+            report = folder / "report"
+            result = self.run_gui(
+                "--javascript", "--video-compat", "--report-dir", str(report),
+                "--quit-after", str(4 * TIME_SCALE), page.as_uri(),
+            )
+            self.assertEqual(result.returncode, 0, result.stderr)
+            events = (report / "events.tsv").read_text()
+            self.assertIn("video_output\tcompat_gl_sink_disabled", events)
+            self.assertIn("media_error\tcode=4;kind=unsupported_source", events)
+            self.assertNotIn("web_process_terminated", events)
+            self.assertNotIn(token, events)
+            self.assertNotIn(page.as_uri(), events)
+
     def test_tabs_reclaim_resume_and_text_in_both_js_modes(self):
         for javascript in (False, True):
             with self.subTest(javascript=javascript):

@@ -1,7 +1,7 @@
 #!/bin/sh
 # Integration check inside a disposable Debian 13 amd64 container only.
 set -eu
-version=${VERSION:-0.2.0~alpha1}
+version=${VERSION:-0.2.0~alpha2}
 [ "$P2_INSTALL_TEST_CONTAINER" = 1 ] && [ -f /.dockerenv ]
 export DEBIAN_FRONTEND=noninteractive
 test "$(dpkg --print-architecture)" = amd64

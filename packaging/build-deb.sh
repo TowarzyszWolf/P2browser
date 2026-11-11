@@ -4,7 +4,7 @@ set -eu
 umask 022
 
 project_dir=$(CDPATH= cd -- "$(dirname -- "$0")/.." && pwd)
-version=${VERSION:-0.2.0~alpha1}
+version=${VERSION:-0.2.0~alpha2}
 epoch=${SOURCE_DATE_EPOCH:-1794355200}
 mode=${1:-all}
 case "$version" in ''|*[!0-9A-Za-z.+:~_-]*) printf '%s\n' 'Invalid VERSION' >&2; exit 2 ;; esac

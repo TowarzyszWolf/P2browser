@@ -1,4 +1,4 @@
-# P2Browser 0.2.0~alpha1 — karty i oszczędzanie pamięci
+# P2Browser 0.2.0~alpha2 — karty i oszczędzanie pamięci
 
 Prototyp przeglądarki w C, GTK 3 i WebKitGTK. Docelowy komputer to Pentium II
 400 MHz, 384 MB SDRAM i ATI 3D Rage Pro. Gotowa paczka poniżej jest przeznaczona
@@ -6,16 +6,16 @@ na **Debiana 13 amd64**, do rozwoju i prób na VM. Nie jest paczką dla P2.
 
 ## Pobierz dla Debiana 13 amd64
 
-- [Komplet ZIP: dwa pakiety, źródła i instrukcja](https://github.com/TowarzyszWolf/P2browser/raw/refs/heads/main/dist/p2browser-0.2.0-alpha1-debian13-amd64.zip)
-- [Program amd64](https://github.com/TowarzyszWolf/P2browser/raw/refs/heads/main/dist/p2browser-probe_0.2.0~alpha1_amd64-trixie.deb)
-- [Wymagany pakiet diagnostyczny](https://github.com/TowarzyszWolf/P2browser/raw/refs/heads/main/dist/p2browser-diagnostics_0.2.0~alpha1_all.deb)
-- [Źródła wydania](https://github.com/TowarzyszWolf/P2browser/raw/refs/heads/main/dist/p2browser-source_0.2.0~alpha1.tar.gz)
+- [Komplet ZIP: dwa pakiety, źródła i instrukcja](https://github.com/TowarzyszWolf/P2browser/raw/refs/heads/main/dist/p2browser-0.2.0-alpha2-debian13-amd64.zip)
+- [Program amd64](https://github.com/TowarzyszWolf/P2browser/raw/refs/heads/main/dist/p2browser-probe_0.2.0~alpha2_amd64-trixie.deb)
+- [Wymagany pakiet diagnostyczny](https://github.com/TowarzyszWolf/P2browser/raw/refs/heads/main/dist/p2browser-diagnostics_0.2.0~alpha2_all.deb)
+- [Źródła wydania](https://github.com/TowarzyszWolf/P2browser/raw/refs/heads/main/dist/p2browser-source_0.2.0~alpha2.tar.gz)
 
 Po rozpakowaniu, w terminalu administratora:
 
 ```sh
 apt update
-apt install ./p2browser-diagnostics_0.2.0~alpha1_all.deb ./p2browser-probe_0.2.0~alpha1_amd64-trixie.deb
+apt install ./p2browser-diagnostics_0.2.0~alpha2_all.deb ./p2browser-probe_0.2.0~alpha2_amd64-trixie.deb
 ```
 
 APT pobiera zależności z własnych repozytoriów Trixie. Nie trzeba dodawać
@@ -26,9 +26,21 @@ GUI uruchamiaj jako zwykły użytkownik pulpitu, bez sudo:
 p2browser-probe
 ```
 
-Instrukcja jest także w [INSTALACJA.txt](INSTALACJA.txt). Archiwa 0.1.1
+Instrukcja jest także w [INSTALACJA.txt](INSTALACJA.txt). Archiwa 0.1.1 i alpha1
 pozostają w `dist/` bez zmiany zawartości. Nowy kod i dokumentacja są na
 [MIT](LICENSE); biblioteki zachowują [własne licencje](THIRD_PARTY.md).
+
+## Co dodaje alpha2
+
+- Komunikat w karcie po zakończeniu procesu strony, z ręcznym ponownym wczytaniem.
+- Czytelna kategoria zakończenia i ostatnia próbka pamięci w raporcie.
+- Raportowanie kodu błędu odtwarzania bez zapisywania adresu filmu.
+- `--video-compat`: diagnostyczne wyłączenie wyjścia GL/DMA-BUF dla wideo.
+
+Przyczyna zgłoszonej awarii YouTube pozostaje niepotwierdzona. Ta wersja
+usprawnia diagnozę i odzyskiwanie strony; nie stanowi potwierdzenia naprawy
+YouTube. Przełącznik wideo nie wymusza dekodowania przez CPU. Szczegóły
+i wykonane próby opisuje [raport](docs/video-diagnostics.md).
 
 ## Co działa w tym etapie
 
@@ -63,7 +75,8 @@ WebKit, o ile użytkownik nie włączy odciążania.
 
 ## Wyniki i dalsza praca nad silnikiem
 
-- [Walidacja bieżącego etapu](docs/validation-alpha1.md).
+- [Diagnostyka wideo i odzyskiwanie po awarii (alpha2)](docs/video-diagnostics.md).
+- [Walidacja kart i pamięci (alpha1)](docs/validation-alpha1.md).
 - [Metoda większych obciążeń](docs/stress-method.md) i [wyniki](docs/stress-results-alpha1.md).
 - [Próba współczesnego silnika bez SSE/SSE2](docs/engine-current-feasibility.md).
 - [Wcześniejsze porównanie Dillo i WebKitGTK w pełnym gościu P2](docs/p2-browser-comparison.md).
@@ -88,6 +101,7 @@ Historyczna [walidacja 0.1.1](docs/validation.md) dotyczy tamtego wydania.
 | --- | --- |
 | `--version` | Wersja programu, WebKitGTK i rozmiar wskaźnika, bez GUI |
 | `--javascript`, `--images` | Włącz odpowiednią funkcję od startu |
+| `--video-compat` | Wyłącz wyjście GL/DMA-BUF dla wideo; opcja diagnostyczna |
 | `--memory-limit-mib N` | Wspólny miękki budżet PSS, 0 = bez budżetu |
 | `--reclaim-background` | Zgoda na utratę stanu kart tła przy przekroczeniu budżetu |
 | `--unlimited-tabs` | Zdejmij limit pięciu kart |

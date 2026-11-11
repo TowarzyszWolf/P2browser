@@ -18,19 +18,19 @@
 #define P2_DATA_DIR "/usr/share/p2browser-probe"
 #endif
 #ifndef P2_VERSION
-#define P2_VERSION "0.2.0~alpha1"
+#define P2_VERSION "0.2.0~alpha2"
 #endif
 #if !WEBKIT_CHECK_VERSION(2, 26, 0)
 #error "WebKitGTK >= 2.26 with the Linux sandbox is required."
 #endif
 
 typedef struct {
-    GtkWidget *page, *label, *content;
+    GtkWidget *page, *label, *content, *failure_notice;
     WebKitWebView *view;
     gchar *uri;
     guint number, references, navigation;
     gboolean closed, suspended, text_mode, text_pending, protected_tab;
-    gboolean navigation_failed, navigation_complete;
+    gboolean navigation_failed, navigation_complete, process_dead;
 } Tab;
 
 typedef struct {
@@ -49,6 +49,9 @@ typedef struct {
     gboolean images_enabled, unlimited_tabs, reclaim_background, saving;
     gboolean ready_reported, pressure_reported, critical_reported;
     gboolean memory_self_test, memory_test_scheduled;
+    gboolean video_compat, last_memory_known;
+    P2MemorySample last_memory;
+    gint64 last_memory_at;
     P2MemoryLevel memory_level;
     gint exit_code;
 } App;
@@ -62,6 +65,15 @@ static void update_tab_label(Tab *tab);
 static gboolean sample_memory(gpointer unused);
 static void check_memory_test(void);
 static void finish_memory_test(gboolean success);
+static void clear_failure_notice(Tab *tab);
+static void event(const char *category, const char *detail);
+
+static void recovery_event(Tab *tab, const gchar *action)
+{
+    gchar *detail = g_strdup_printf("tab=%u;action=%s", tab->number, action);
+    event("web_process_recovery", detail);
+    g_free(detail);
+}
 
 static Tab *tab_ref(Tab *tab)
 {
@@ -204,9 +216,11 @@ static void forward_clicked(GtkButton *button, gpointer unused)
 static void reload_clicked(GtkButton *button, gpointer unused)
 {
     (void)button; (void)unused;
-    if (app.view)
+    if (app.view) {
+        if (app.active && app.active->process_dead)
+            recovery_event(app.active, "reload_requested");
         webkit_web_view_reload(app.view);
-    else if (app.active && app.active->uri) {
+    } else if (app.active && app.active->uri) {
         gchar *uri = g_strdup(app.active->uri);
         ensure_view(app.active);
         app.view = app.active->view;
@@ -411,6 +425,8 @@ static void load_changed(WebKitWebView *view, WebKitLoadEvent state,
         return;
     switch (state) {
     case WEBKIT_LOAD_STARTED:
+        clear_failure_notice(tab);
+        tab->process_dead = FALSE;
         tab->navigation++;
         tab->text_pending = FALSE;
         tab->navigation_failed = FALSE;
@@ -431,6 +447,8 @@ static void load_changed(WebKitWebView *view, WebKitLoadEvent state,
         event(current ? "load" : "tab_load", "committed");
         break;
     case WEBKIT_LOAD_FINISHED:
+        if (tab->process_dead)
+            break;
         tab->navigation_complete = TRUE;
         event(current ? "load" : "tab_load", "finished");
         if (current) {
@@ -468,21 +486,104 @@ static gboolean load_failed(WebKitWebView *view, WebKitLoadEvent state,
     return FALSE;
 }
 
+static void clear_failure_notice(Tab *tab)
+{
+    GtkWidget *notice = tab->failure_notice;
+    tab->failure_notice = NULL;
+    if (notice)
+        gtk_widget_destroy(notice);
+}
+
+static void recovery_response(GtkInfoBar *notice, gint response, gpointer data)
+{
+    Tab *tab = data;
+    (void)notice;
+    if (tab->closed || app.stopping)
+        return;
+    if (response == GTK_RESPONSE_APPLY && tab->view) {
+        recovery_event(tab, "reload_requested");
+        webkit_web_view_reload(tab->view);
+    } else
+        clear_failure_notice(tab);
+}
+
 static void process_terminated(WebKitWebView *view,
                                WebKitWebProcessTerminationReason reason,
                                gpointer unused)
 {
     Tab *tab = tab_for_view(view);
-    gchar *detail = g_strdup_printf("reason=%d", (int)reason);
+    const gchar *kind, *message;
+    GtkWidget *label;
+    gchar *detail;
     (void)unused;
+    if (!tab || tab->closed || app.stopping)
+        return;
+    switch (reason) {
+    case WEBKIT_WEB_PROCESS_CRASHED:
+        kind = "crashed";
+        message = "Proces tej strony uległ awarii. Możesz wczytać ją ponownie; niezapisane dane mogą być utracone.";
+        break;
+    case WEBKIT_WEB_PROCESS_EXCEEDED_MEMORY_LIMIT:
+        kind = "engine_memory_limit";
+        message = "Silnik zakończył proces tej strony po przekroczeniu swojego limitu pamięci. Możesz zwolnić karty w tle i spróbować ponownie.";
+        break;
+    case WEBKIT_WEB_PROCESS_TERMINATED_BY_API:
+        kind = "terminated_by_api";
+        message = "Proces tej strony został zatrzymany. Możesz wczytać stronę ponownie.";
+        break;
+    default:
+        kind = "unknown";
+        message = "Proces tej strony zakończył działanie. Możesz wczytać ją ponownie.";
+        break;
+    }
+    detail = g_strdup_printf("reason=%d;kind=%s;tab=%u;active=%d",
+        (int)reason, kind, tab->number, tab == app.active);
     event("web_process_terminated", detail);
     g_free(detail);
-    if (tab)
-        tab->navigation_failed = TRUE;
-    if (tab == app.active)
-        status_text("Proces strony zakończył działanie. Sprawdź raport.");
+    if (app.last_memory_known) {
+        const P2MemorySample *memory = &app.last_memory;
+        detail = g_strdup_printf("scope=browser_tree;age_ms=%" G_GINT64_FORMAT
+            ";pss_complete=%d;pss_kib=%" G_GUINT64_FORMAT
+            ";swap_kib=%" G_GUINT64_FORMAT ";available_known=%d;available_kib=%" G_GUINT64_FORMAT
+            ";swap_free_known=%d;swap_free_kib=%" G_GUINT64_FORMAT,
+            (g_get_monotonic_time() - app.last_memory_at) / 1000,
+            memory->pss_complete, (guint64)memory->pss_kib, (guint64)memory->swap_kib,
+            memory->available_known, (guint64)memory->available_kib,
+            memory->swap_free_known, (guint64)memory->swap_free_kib);
+        event("termination_memory", detail);
+        g_free(detail);
+    } else
+        event("termination_memory", "unavailable");
+    tab->navigation++;
+    tab->process_dead = TRUE;
+    tab->text_pending = FALSE;
+    tab->navigation_failed = TRUE;
+    tab->navigation_complete = FALSE;
+    clear_failure_notice(tab);
+    tab->failure_notice = gtk_info_bar_new_with_buttons(
+        "Wczytaj ponownie", GTK_RESPONSE_APPLY, "Ukryj komunikat", GTK_RESPONSE_CLOSE, NULL);
+    gtk_info_bar_set_message_type(GTK_INFO_BAR(tab->failure_notice), GTK_MESSAGE_ERROR);
+    label = gtk_label_new(message);
+    gtk_label_set_line_wrap(GTK_LABEL(label), TRUE);
+    gtk_label_set_xalign(GTK_LABEL(label), 0.0);
+    gtk_container_add(GTK_CONTAINER(gtk_info_bar_get_content_area(
+        GTK_INFO_BAR(tab->failure_notice))), label);
+    gtk_box_pack_start(GTK_BOX(tab->page), tab->failure_notice, FALSE, FALSE, 0);
+    gtk_box_reorder_child(GTK_BOX(tab->page), tab->failure_notice, 0);
+    g_signal_connect(tab->failure_notice, "response", G_CALLBACK(recovery_response), tab);
+    gtk_widget_show_all(tab->failure_notice);
+    update_tab_label(tab);
+    recovery_event(tab, "notice_shown");
+    if (tab == app.active) {
+        app.navigation_failed = TRUE;
+        app.navigation_complete = FALSE;
+        app.ready_reported = FALSE;
+        status_text("Proces strony zakończył działanie. Przeglądarka pozostaje otwarta; szczegóły zapisano w raporcie.");
+    }
     if (tab == app.active && app.self_test)
         finish_test(FALSE);
+    if (app.memory_self_test)
+        finish_memory_test(FALSE);
 }
 
 static void script_error(WebKitUserContentManager *manager,
@@ -490,12 +591,22 @@ static void script_error(WebKitUserContentManager *manager,
 {
     JSCValue *value = webkit_javascript_result_get_js_value(result);
     gchar *text;
-    unsigned int line, column;
+    unsigned int line, column, media_code;
     (void)manager; (void)unused;
     if (!jsc_value_is_string(value) || app.error_count >= 100)
         return;
     text = jsc_value_to_string(value);
-    if (strlen(text) < 64 && sscanf(text, "error:%u:%u", &line, &column) == 2) {
+    if (strlen(text) < 64 && sscanf(text, "media:error:%u", &media_code) == 1 &&
+        media_code >= 1 && media_code <= 4) {
+        static const gchar *const kinds[] = {"unknown", "aborted", "network", "decode", "unsupported_source"};
+        gchar *detail = g_strdup_printf("code=%u;kind=%s", media_code, kinds[media_code]);
+        event("media_error", detail);
+        g_free(detail);
+        app.error_count++;
+    } else if (!strcmp(text, "media:playing")) {
+        event("media_playback", "playing");
+        app.error_count++;
+    } else if (strlen(text) < 64 && sscanf(text, "error:%u:%u", &line, &column) == 2) {
         gchar *detail = g_strdup_printf("line=%u;column=%u", line, column);
         event("javascript_error", detail);
         g_free(detail);
@@ -729,7 +840,7 @@ static void dom_text_ready(GObject *object, GAsyncResult *result, gpointer data)
 static void request_text(Tab *tab)
 {
     TextRequest *request;
-    if (!tab->view || tab->closed || tab->text_pending)
+    if (!tab->view || tab->closed || tab->text_pending || tab->process_dead)
         return;
     tab->text_pending = TRUE;
     request = g_new0(TextRequest, 1);
@@ -808,6 +919,9 @@ static gboolean sample_memory(gpointer unused)
         gtk_label_set_text(GTK_LABEL(app.memory_status), "RAM: brak danych");
         return G_SOURCE_CONTINUE;
     }
+    app.last_memory = sample;
+    app.last_memory_at = g_get_monotonic_time();
+    app.last_memory_known = TRUE;
     detail = g_strdup_printf(
         "processes=%u;rss_kib=%" G_GUINT64_FORMAT ";swap_kib=%" G_GUINT64_FORMAT
         ";pss_complete=%d;pss_kib=%" G_GUINT64_FORMAT ";pss_missing=%u",
@@ -953,6 +1067,8 @@ static void update_tab_label(Tab *tab)
         return;
     if (tab->suspended)
         label = g_strdup_printf("%u: odciążona", tab->number);
+    else if (tab->process_dead)
+        label = g_strdup_printf("%u: błąd strony", tab->number);
     else if (tab->text_mode)
         label = g_strdup_printf("%u: tekst", tab->number);
     else {
@@ -972,6 +1088,7 @@ static void ensure_view(Tab *tab)
     WebKitSettings *settings;
     if (tab->view || tab->closed)
         return;
+    clear_failure_notice(tab);
     if (tab->content) {
         gtk_widget_destroy(tab->content);
         tab->content = NULL;
@@ -980,6 +1097,7 @@ static void ensure_view(Tab *tab)
     tab->text_mode = FALSE;
     tab->navigation_complete = FALSE;
     tab->navigation_failed = FALSE;
+    tab->process_dead = FALSE;
     manager = webkit_user_content_manager_new();
     g_signal_connect(manager, "script-message-received::p2ProbeError",
                       G_CALLBACK(script_error), NULL);
@@ -989,7 +1107,13 @@ static void ensure_view(Tab *tab)
         "window.webkit.messageHandlers.p2ProbeError.postMessage("
         "'error:'+(e.lineno||0)+':'+(e.colno||0));});"
         "window.addEventListener('unhandledrejection',function(){"
-        "window.webkit.messageHandlers.p2ProbeError.postMessage('unhandled_rejection');});",
+        "window.webkit.messageHandlers.p2ProbeError.postMessage('unhandled_rejection');});"
+        "window.addEventListener('error',function(e){var t=e.target;"
+        "if(t&&(t.tagName==='VIDEO'||t.tagName==='AUDIO')&&t.error)"
+        "window.webkit.messageHandlers.p2ProbeError.postMessage('media:error:'+t.error.code);},true);"
+        "window.addEventListener('playing',function(e){var t=e.target;"
+        "if(t&&(t.tagName==='VIDEO'||t.tagName==='AUDIO'))"
+        "window.webkit.messageHandlers.p2ProbeError.postMessage('media:playing');},true);",
         WEBKIT_USER_CONTENT_INJECT_ALL_FRAMES,
         WEBKIT_USER_SCRIPT_INJECT_AT_DOCUMENT_START, NULL, NULL);
     webkit_user_content_manager_add_script(manager, script);
@@ -1141,6 +1265,7 @@ static guint reclaim_background_tabs(void)
         tab->content = NULL;
         tab->suspended = TRUE;
         tab->navigation_complete = FALSE;
+        clear_failure_notice(tab);
         gtk_widget_destroy(old);
         tab->content = gtk_label_new(
             "Karta została odciążona. Powrót przeładuje stronę; niezapisany stan formularzy jest utracony.");
@@ -1376,6 +1501,7 @@ int main(int argc, char **argv)
         {"version", 0, 0, G_OPTION_ARG_NONE, &version, "Wersja bez GUI", NULL},
         {"javascript", 0, 0, G_OPTION_ARG_NONE, &app.js_enabled, "Włącz JS silnika", NULL},
         {"images", 0, 0, G_OPTION_ARG_NONE, &app.images_enabled, "Włącz automatyczne obrazy", NULL},
+        {"video-compat", 0, 0, G_OPTION_ARG_NONE, &app.video_compat, "Diagnostyka wideo: wyłącz wyjście GL i DMA-BUF (bez wymuszania dekodera)", NULL},
         {"memory-limit-mib", 0, 0, G_OPTION_ARG_INT, &app.memory_limit_mib, "Miękki budżet PSS; 0 = bez budżetu", "MiB"},
         {"reclaim-background", 0, 0, G_OPTION_ARG_NONE, &app.reclaim_background, "Zgoda na utratę stanu kart tła przy przekroczeniu budżetu", NULL},
         {"unlimited-tabs", 0, 0, G_OPTION_ARG_NONE, &app.unlimited_tabs, "Zdejmij limit pięciu kart", NULL},
@@ -1433,12 +1559,18 @@ int main(int argc, char **argv)
         g_free(scheme);
     }
     app.started = g_get_monotonic_time();
+    /* Set before GTK/GIO threads and before the engine creates subprocesses. */
+    if (app.video_compat) {
+        g_setenv("WEBKIT_GST_DISABLE_GL_SINK", "1", TRUE);
+        g_setenv("WEBKIT_GST_DMABUF_SINK_DISABLED", "1", TRUE);
+    }
     if (!make_report(report_dir, &error)) {
         g_printerr("Błąd raportu: %s\n", error->message);
         g_clear_error(&error);
         return 2;
     }
     g_print("Raport: %s\nPID interfejsu: %ld\n", app.report_dir, (long)getpid());
+    event("video_output", app.video_compat ? "compat_gl_sink_disabled" : "engine_default");
     fflush(stdout);
     if (!gtk_init_check(&argc, &argv)) {
         event("startup_failed", "display_unavailable");
