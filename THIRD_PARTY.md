@@ -79,6 +79,15 @@ całej dystrybucji do paczki programu.
 
 ## Zasoby projektu
 
+Eksperyment `experimental/engine-current/` pobiera WebKitGTK 2.54.2 z
+oficjalnego archiwum i weryfikuje SHA-256. Archiwum ma własny wykaz licencji
+(LGPL/BSD i licencje składników, w tym bmalloc/libpas). Dwie lokalne poprawki
+są opisane w raporcie; nie zmieniają licencji kodu upstream. Repozytorium
+publikuje skrypty i opis próby, bez źródeł oraz binariów tego silnika.
+CMake, Ninja, ICU, Ruby, Perl i narzędzia multilib są zależnościami wyłącznie
+tego eksperymentu budowania. Syntetyczne obciążenia i generator PNG w
+`fixtures/stress/` są własnym kodem i danymi projektu na MIT.
+
 `fixtures/start.html` jest własną stroną testową na MIT. Nie pobiera
 zewnętrznych fontów, obrazów, skryptów lub innych zasobów. Nie dołączamy kopii
 witryn odniesienia ani ich materiałów. Kod Dillo i NetSurf nie został włączony

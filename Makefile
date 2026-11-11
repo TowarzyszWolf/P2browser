@@ -1,4 +1,4 @@
-VERSION ?= 0.1.1
+VERSION ?= 0.2.0~alpha1
 CC ?= cc
 PKG_CONFIG ?= pkg-config
 PYTHON ?= python3
@@ -6,7 +6,7 @@ PREFIX ?= /usr
 DESTDIR ?=
 BINDIR ?= $(PREFIX)/bin
 DATADIR ?= $(PREFIX)/share/p2browser-probe
-SOURCE_DATE_EPOCH ?= 1794096000
+SOURCE_DATE_EPOCH ?= 1794355200
 export SOURCE_DATE_EPOCH
 
 # This release targets native amd64 Debian 13, with GTK 3 / WebKitGTK API 4.1.
@@ -24,10 +24,12 @@ all: build/p2browser-probe
 check-deps:
 	@$(PKG_CONFIG) --exists 'gtk+-3.0 >= 3.24' '$(WEBKIT_PKG) >= 2.40' || { printf '%s\n' 'Missing GTK 3 / WebKitGTK 4.1 development files. Install libgtk-3-dev and libwebkit2gtk-4.1-dev on Debian 13.' >&2; exit 1; }
 
-# Rebuild the one translation unit so compiler/flag changes never reuse an old ELF.
-build/p2browser-probe: src/main.c FORCE | check-deps
+SOURCES := src/main.c src/memory-policy.c
+
+# Rebuild so compiler/flag changes never reuse an old ELF.
+build/p2browser-probe: $(SOURCES) src/memory-policy.h FORCE | check-deps
 	@mkdir -p build
-	$(CC) $(CPPFLAGS) $(CFLAGS) $(WARNINGS) -std=c99 $(WEBKIT_CFLAGS) $(LDFLAGS) -o $@ $< $(WEBKIT_LIBS) $(LDLIBS)
+	$(CC) $(CPPFLAGS) $(CFLAGS) $(WARNINGS) -std=c99 $(WEBKIT_CFLAGS) $(LDFLAGS) -o $@ $(SOURCES) $(WEBKIT_LIBS) $(LDLIBS)
 
 FORCE:
 

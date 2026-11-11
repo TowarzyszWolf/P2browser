@@ -40,16 +40,23 @@ a nie gwarancją stabilności całego stosu. Flagi kompilacji własnego kodu nie
 zmieniają instrukcji w gotowych zależnościach. Aktualny port P2 i starszych
 systemów, a także jego utrzymanie, pozostają osobnym ryzykiem projektu.
 
+Próba z 11 listopada skompilowała JavaScriptCore 2.54.2 z C Loop dla i386
+bez SSE/SSE2 i wykonała test JS na modelu P2. Pełny port GTK pozostaje
+niedokończony: [wyniki i poprawki](engine-current-feasibility.md).
+
 Dillo działało według użytkownika na P2 z Debianem 12. Bez znanej wersji lub
 pomiarów jest punktem odniesienia, nie gotową realizacją wymagań JS. NetSurf
 również pozostaje alternatywą o ograniczonej zgodności z aplikacjami WWW.
 
 ## Rzeczywista granica funkcji
 
-0.1.1 to pojedynczy widok i podstawowa nawigacja. JS domyślnie jest wyłączony,
-a jego przełącznik udostępnia możliwości silnika. Nie jest to jeszcze
-uzgodniony oszczędny JS ani system wyjątków dla witryn. Nie udajemy wdrożenia
-kart, limitów RAM, quota danych, trwałej historii, offline lub pracy zdalnej.
+0.2.0~alpha1 dodaje pięć kart, miękki budżet PSS, odciążanie WebView w tle
+z utratą niezapisanego stanu oraz uproszczony podgląd tekstowy.
+[Szczegóły i granice](memory-controls.md) obejmują brak twardego limitu RAM
+i brak bezstratnego zamrożenia do swapu. Ustawienia nie są jeszcze trwałe.
+JS domyślnie jest wyłączony, a przełącznik udostępnia możliwości silnika;
+oszczędny JS i wyjątki witryn pozostają przyszłą pracą. Quota danych,
+trwała historia, offline i moduł zdalny nie są jeszcze zaimplementowane.
 
 Profil danych jest tymczasowy. Oszczędny cache w tej wersji pomaga pomiarowi,
 ale nie zastępuje docelowego cache przyspieszającego ponowne ładowanie.

@@ -1,9 +1,9 @@
-P2Browser 0.1.1 — Debian 13 Trixie amd64
+P2Browser 0.2.0~alpha1 — Debian 13 Trixie amd64
 
 Komplet zawiera:
-  p2browser-diagnostics_0.1.1_all.deb
-  p2browser-probe_0.1.1_amd64-trixie.deb
-  p2browser-source_0.1.1.tar.gz
+  p2browser-diagnostics_0.2.0~alpha1_all.deb
+  p2browser-probe_0.2.0~alpha1_amd64-trixie.deb
+  p2browser-source_0.2.0~alpha1.tar.gz
   SHA256SUMS
 
 1. Rozpakuj archiwum i wejdź do katalogu z powyższymi plikami.
@@ -11,7 +11,7 @@ Komplet zawiera:
 2. W terminalu administratora (root) wykonaj:
 
    apt update
-   apt install ./p2browser-diagnostics_0.1.1_all.deb ./p2browser-probe_0.1.1_amd64-trixie.deb
+   apt install ./p2browser-diagnostics_0.2.0~alpha1_all.deb ./p2browser-probe_0.2.0~alpha1_amd64-trixie.deb
 
    Obie paczki podaj w jednym poleceniu. Pakiet diagnostyczny jest lokalnym
    składnikiem projektu i nie znajduje się w repozytoriach Debiana.
@@ -30,12 +30,12 @@ zmiany repozytoriów na Debian 12 ani wymuszania pominięcia zależności.
 Zastępuje wcześniejszą paczkę 0.1.0 i386-bookworm przy testach na amd64/Trixie.
 Nie jest przeznaczona na Pentium II.
 
-Program jest prototypem pomiarowym z jednym widokiem strony. Domyślnie JS
+Program jest prototypem z kartami i miękkim budżetem pamięci.
+Odciążanie kart oznacza przeładowanie i utratę niezapisanego stanu.
+Budżet PSS nie jest twardym limitem RAM; swapem zarządza Linux. Domyślnie JS
 i obrazy są wyłączone; można je włączyć przyciskami i odświeżyć stronę.
 Nie są jeszcze gotowe wszystkie funkcje docelowej przeglądarki.
 
-Wydanie 0.1.1 odtworzono z kodu i ustaleń zachowanych w rozmowie po zmianie
-środowiska. Nie jest identyczną bajtowo kopią archiwum 0.1.0.
 Kod, dokumentacja wymagań, licencja MIT i wykaz zależności są w archiwum źródeł.
 
 Kontrola pobranych plików:

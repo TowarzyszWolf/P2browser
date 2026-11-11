@@ -1,0 +1,14 @@
+{
+  "scope": "offline_generated_fixtures",
+  "duration_seconds": 120,
+  "selected_cases": [
+    "tabs-baseline",
+    "tabs-pressure"
+  ],
+  "pressure_budget_mib": 96,
+  "fixture_manifest_sha256": "f7238988f84b1d5e24e5154d0aafc20d60b537baf2137501eb480a5a258cb301",
+  "screenshot": "Xvfb root capture requires visual review",
+  "timings": "Emulator/host time; not a simulation of Pentium II 400 MHz",
+  "cpu_scope": "RUSAGE_CHILDREN after reaping: browser descendants, excluding supervisor/driver/monitor",
+  "pss_scope": "browser subtree plus subreaper; excludes driver, Xvfb, D-Bus and monitor"
+}

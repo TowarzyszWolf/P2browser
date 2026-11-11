@@ -1,0 +1,9 @@
+case	status	exit_code	load_finished	fixture_ready	sandbox	memory_pressure	background_reclaimed	ready_elapsed_ms	pss_max_kib	rss_max_kib	vmswap_max_kib	processes_max	pss_missing_samples	samples	root_png	memory_limit_mib	cpu_user_us	cpu_system_us	cpu_total_us	cpu_total_ms
+dom-no-js	READY	0	true	true	true	false	false	30734	215064	345104	0	9	0	24	requires_visual_review	0	6076551	3483262	9559813	9559.813
+images-off	READY	0	true	true	true	false	false	10106	160339	285860	0	9	0	23	requires_visual_review	0	5900105	1916146	7816251	7816.251
+images-on	READY	0	true	true	true	false	false	9145	277298	405376	0	9	0	23	requires_visual_review	0	8971673	2955924	11927597	11927.597
+js-off	READY	0	true	true	true	false	false	10612	152953	286444	0	9	0	23	requires_visual_review	0	8789671	3169742	11959413	11959.413
+js-on	READY	0	true	true	true	false	false	20355	223177	354452	0	9	0	23	requires_visual_review	0	15490542	3219494	18710036	18710.036
+mixed-on	READY	0	true	true	true	false	false	12795	308579	429036	0	9	0	23	requires_visual_review	0	10712321	3017430	13729751	13729.751
+tabs-baseline	LOAD_NOT_CONFIRMED	0	false	false	true	false	false	NA	320208	609248	32176	21	0	20	missing	0	6149884	3416600	9566484	9566.484
+tabs-pressure	PASS_RECLAIM	0	true	true	true	true	true	36129	209553	336764	0	21	0	21	requires_visual_review	96	7902490	3492153	11394643	11394.643

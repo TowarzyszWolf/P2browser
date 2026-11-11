@@ -7,6 +7,7 @@ sandbox enabled and exercise only local documents.
 
 import json
 import os
+import re
 from pathlib import Path
 import shutil
 import subprocess
@@ -18,6 +19,10 @@ PROJECT = Path(__file__).resolve().parents[1]
 BINARY = PROJECT / "build" / "p2browser-probe"
 RUN_BINARY = os.environ.get("P2_RUN_PROBE_TESTS") == "1"
 RUN_GUI = os.environ.get("P2_RUN_GUI_TESTS") == "1"
+TIME_SCALE = int(os.environ.get("P2_GUI_TEST_TIME_SCALE", "1"))
+if not 1 <= TIME_SCALE <= 10:
+    raise ValueError("P2_GUI_TEST_TIME_SCALE must be between 1 and 10")
+BUILD_VERSION = re.search(r"^VERSION\s*\?=\s*(\S+)", (PROJECT / "Makefile").read_text(), re.M).group(1)
 
 
 @unittest.skipUnless(
@@ -40,7 +45,7 @@ class ProbeCliTests(unittest.TestCase):
             report = Path(tmp) / "not-created"
             result = self.run_probe("--version", "--report-dir", str(report), env=env)
             self.assertEqual(result.returncode, 0, result.stderr)
-            self.assertIn("p2browser-probe 0.1.1", result.stdout)
+            self.assertIn("p2browser-probe " + BUILD_VERSION, result.stdout)
             self.assertIn("WebKitGTK", result.stdout)
             self.assertFalse(report.exists())
 
@@ -51,6 +56,10 @@ class ProbeCliTests(unittest.TestCase):
                 ("--quit-after", "-1"),
                 ("--quit-after", "86401"),
                 ("--self-test", "https://example.invalid/"),
+                ("--memory-limit-mib", "-1"),
+                ("--memory-limit-mib", "65537"),
+                ("--memory-self-test", "--self-test"),
+                ("--memory-self-test", "--memory-limit-mib", "96"),
                 ("https://example.invalid/one", "https://example.invalid/two"),
             )
             for args in invalid_arguments:
@@ -95,7 +104,7 @@ class ProbeGuiTests(unittest.TestCase):
             ["dbus-run-session", "--", "xvfb-run", "-a", str(BINARY), *args],
             capture_output=True,
             text=True,
-            timeout=45,
+            timeout=45 * TIME_SCALE,
         )
 
     def test_local_render_and_js_form_in_both_modes(self):
@@ -107,7 +116,7 @@ class ProbeGuiTests(unittest.TestCase):
                         "--data-dir", str(PROJECT / "fixtures"),
                         "--self-test",
                         "--report-dir", str(report),
-                        "--quit-after", "30",
+                        "--quit-after", str(30 * TIME_SCALE),
                     ]
                     if javascript:
                         args.append("--javascript")
@@ -142,13 +151,37 @@ class ProbeGuiTests(unittest.TestCase):
             report = folder / "report"
             result = self.run_gui(
                 "--javascript", "--report-dir", str(report),
-                "--quit-after", "4", page.as_uri(),
+                "--quit-after", str(4 * TIME_SCALE), page.as_uri(),
             )
             self.assertEqual(result.returncode, 0, result.stderr)
             events = (report / "events.tsv").read_text(encoding="utf-8")
             self.assertIn("javascript_error", events)
             self.assertNotIn(token, events)
             self.assertNotIn(page.as_uri(), events)
+
+    def test_tabs_reclaim_resume_and_text_in_both_js_modes(self):
+        for javascript in (False, True):
+            with self.subTest(javascript=javascript):
+                with tempfile.TemporaryDirectory() as tmp:
+                    report = Path(tmp) / "report"
+                    args = ["--data-dir", str(PROJECT / "fixtures"),
+                            "--memory-self-test", "--report-dir", str(report),
+                            "--quit-after", str(30 * TIME_SCALE)]
+                    if javascript:
+                        args.append("--javascript")
+                    result = self.run_gui(*args)
+                    self.assertEqual(result.returncode, 0, result.stderr)
+                    outcome = json.loads((report / "memory-self-test.json").read_text())
+                    self.assertTrue(outcome["success"])
+                    self.assertEqual(outcome["tab_limit"], 5)
+                    self.assertEqual(outcome["discarded"], 3)
+                    self.assertTrue(outcome["resumed"])
+                    self.assertTrue(outcome["text_mode"])
+                    events = (report / "events.tsv").read_text()
+                    for marker in ("sandbox\tenabled", "tab_limit\treached",
+                                   "memory_reclaim\tbackground_tabs=3",
+                                   "tab_resume\treloaded", "text_mode\tenabled_"):
+                        self.assertIn(marker, events)
 
 
 if __name__ == "__main__":

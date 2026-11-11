@@ -162,7 +162,7 @@ run_case webkit-selftest-js-on selftest 105 "$p2_probe" --data-dir "$p2_project/
     --report-dir "$p2_results/webkit-selftest-js-on/app" --self-test --quit-after 90 --javascript
 printf 'Running opt-in CLI/GUI regression tests in the full i386 guest.\n'
 p2_regression_rc=0
-timeout --kill-after=10 180 env P2_RUN_PROBE_TESTS=1 P2_RUN_GUI_TESTS=1 \
+timeout --kill-after=10 600 env P2_RUN_PROBE_TESTS=1 P2_RUN_GUI_TESTS=1 P2_GUI_TEST_TIME_SCALE=5 \
     python3 -m unittest discover -s "$p2_project/tests" -p test_probe.py -v \
     > "$p2_results/probe-regression-tests.log" 2>&1 || p2_regression_rc=$?
 printf '%s\n' "$p2_regression_rc" > "$p2_results/probe-regression-exit.txt"

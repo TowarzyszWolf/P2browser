@@ -16,32 +16,35 @@ RUN --mount=type=secret,id=proxy_ca,target=/run/secrets/proxy_ca \
     fi; \
     printf 'db185300a9daabbce86aca7632d8c7fdc4249f6f153171954013b70c5f491ec0  /usr/local/bin/proot\n' | sha256sum -c -; \
     chmod 755 /usr/local/bin/proot; \
+    find /usr/bin -maxdepth 1 -name 'qemu-*-static' ! -name 'qemu-i386-static' -delete; \
     rm -rf /var/lib/apt/lists/*; mkdir -p /run/secrets
 COPY --from=i386root / /guest/
 ENV PROOT_NO_SECCOMP=1 PROOT_FORCE_FOREIGN_BINARY=1
 COPY emulation/install-i386-packages.sh /usr/local/bin/p2-install-i386
 
-FROM buildbase AS compile
+FROM buildbase AS compile-packages
 RUN --mount=type=secret,id=proxy_ca,target=/run/secrets/proxy_ca \
     --mount=type=cache,target=/guest/var/cache/apt/archives,id=p2-compile-i386-archives \
     sh /usr/local/bin/p2-install-i386 \
     build-essential pkg-config libgtk-3-dev libwebkit2gtk-4.1-dev ca-certificates
 SHELL ["proot", "-q", "/usr/bin/qemu-i386-static", "-r", "/guest", "-b", "/dev", "-b", "/proc", "-b", "/sys", "-b", "/tmp", "-b", "/etc/resolv.conf", "-b", "/run/secrets", "-b", "/usr/bin/qemu-i386-static", "-w", "/", "/bin/sh", "-c"]
 RUN test "$(dpkg --print-architecture)" = i386
-COPY Makefile /guest/src/Makefile
-COPY src /guest/src/src
-COPY emulation/case-supervisor.c /guest/src/case-supervisor.c
+FROM compile-packages AS compile
+COPY . /guest/src/
 RUN cd /src && make CFLAGS='-Os -g1 -march=pentium2 -mno-sse -mno-sse2 -mfpmath=387' \
     && cc -std=c99 -Wall -Wextra -Os -march=pentium2 -mno-sse -mno-sse2 -mfpmath=387 \
-       case-supervisor.c -o build/case-supervisor \
+       emulation/case-supervisor.c -o build/case-supervisor \
     && dpkg-query -W -f='${binary:Package}\t${Version}\t${Architecture}\n' \
        gcc libc6 libgtk-3-0 libwebkit2gtk-4.1-0 libjavascriptcoregtk-4.1-0 \
        > /src/build/compile-packages.tsv
 
-FROM buildbase AS guest
+FROM buildbase AS guest-packages
 ENV DEBIAN_FRONTEND=noninteractive
 RUN --mount=type=secret,id=proxy_ca,target=/run/secrets/proxy_ca \
     --mount=type=cache,target=/guest/var/cache/apt/archives,id=p2-guest-i386-archives \
+    set -eu; mkdir -p /guest/etc/initramfs-tools/conf.d; \
+    printf 'MODULES=list\n' > /guest/etc/initramfs-tools/conf.d/p2-profile; \
+    printf 'ata_piix\nsd_mod\next4\n' > /guest/etc/initramfs-tools/modules; \
     sh /usr/local/bin/p2-install-i386 \
       linux-image-686 initramfs-tools busybox-static \
       libgtk-3-0 libwebkit2gtk-4.1-0 libjavascriptcoregtk-4.1-0 \
@@ -60,6 +63,7 @@ RUN set -eu; \
     printf 'kernel.unprivileged_userns_clone = 1\n' > /etc/sysctl.d/80-p2-experiment.conf; \
     dpkg-query -W -f='${binary:Package}\t${Version}\t${Architecture}\n' \
       > /opt/p2browser/runtime-packages.tsv
+FROM guest-packages AS guest
 COPY . /guest/opt/p2browser/
 COPY --from=compile /guest/src/build/ /guest/opt/p2browser/build/
 RUN set -eu; \
@@ -93,7 +97,7 @@ RUN --mount=type=secret,id=proxy_ca,target=/run/secrets/proxy_ca \
     rm -rf /var/lib/apt/lists/* /tmp/p2-apt.conf
 COPY emulation/build-full-image.sh /usr/local/bin/p2-build-full-image
 COPY --chmod=0755 emulation/run-full-check.sh /usr/local/bin/p2-full-run
-COPY --chmod=0755 emulation/full-guest-init.sh emulation/guest-benchmark.sh /opt/p2-harness/
+COPY --chmod=0755 emulation/full-guest-init.sh emulation/guest-benchmark.sh emulation/stress-benchmark.sh /opt/p2-harness/
 COPY --from=guest /guest/ /guest/
 RUN sh /usr/local/bin/p2-build-full-image /guest /artifacts && rm -rf /guest
 CMD ["sh", "/usr/local/bin/p2-full-run"]

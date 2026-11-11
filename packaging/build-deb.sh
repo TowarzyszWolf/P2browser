@@ -4,8 +4,8 @@ set -eu
 umask 022
 
 project_dir=$(CDPATH= cd -- "$(dirname -- "$0")/.." && pwd)
-version=${VERSION:-0.1.1}
-epoch=${SOURCE_DATE_EPOCH:-1794096000}
+version=${VERSION:-0.2.0~alpha1}
+epoch=${SOURCE_DATE_EPOCH:-1794355200}
 mode=${1:-all}
 case "$version" in ''|*[!0-9A-Za-z.+:~_-]*) printf '%s\n' 'Invalid VERSION' >&2; exit 2 ;; esac
 case "$epoch" in ''|*[!0-9]*) printf '%s\n' 'Invalid SOURCE_DATE_EPOCH' >&2; exit 2 ;; esac
@@ -60,6 +60,12 @@ copy_docs() {
         install -d -m 755 "$doc_dir/docs"
         for doc in "$project_dir/docs/"*.md; do
             [ ! -f "$doc" ] || install -m 644 "$doc" "$doc_dir/docs/"
+        done
+        for result in "$project_dir/docs/results/"*.tsv "$project_dir/docs/results/"*-profile.json; do
+            if [ -f "$result" ]; then
+                install -d -m 755 "$doc_dir/docs/results"
+                install -m 644 "$result" "$doc_dir/docs/results/"
+            fi
         done
     fi
     cat > "$doc_dir/build-info.txt" <<EOF

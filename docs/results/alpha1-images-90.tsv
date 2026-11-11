@@ -1,0 +1,2 @@
+case	status	exit_code	load_finished	fixture_ready	sandbox	memory_pressure	background_reclaimed	ready_elapsed_ms	pss_max_kib	rss_max_kib	vmswap_max_kib	processes_max	pss_missing_samples	samples	root_png	memory_limit_mib	cpu_user_us	cpu_system_us	cpu_total_us	cpu_total_ms
+images-on	READY	0	true	true	true	false	false	12304	275322	404868	0	9	0	44	requires_visual_review	0	11187930	5758610	16946540	16946.540

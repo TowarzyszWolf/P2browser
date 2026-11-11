@@ -50,6 +50,27 @@ class CaseSupervisorTests(unittest.TestCase):
                                         timeout=5, preexec_fn=no_core)
                 self.assertEqual(result.returncode, expected, result.stderr)
 
+    def test_reports_cpu_of_waited_child_without_overwriting_existing_report(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            path = Path(tmp)
+            usage = path / "cpu.tsv"
+            env = dict(os.environ, P2_SUPERVISOR_USAGE_FILE=str(usage))
+            command = [str(self.binary), str(path / "pid"), sys.executable,
+                       "-c", "sum(i*i for i in range(500000))"]
+            result = subprocess.run(command, env=env, capture_output=True, timeout=5)
+            self.assertEqual(result.returncode, 0, result.stderr)
+            lines = usage.read_text().splitlines()
+            self.assertEqual(lines[0], "children_user_us\tchildren_system_us")
+            user, system = map(int, lines[1].split("\t"))
+            self.assertGreater(user, 0)
+            self.assertGreaterEqual(system, 0)
+            before = usage.read_bytes()
+            command[1] = str(path / "pid-two")
+            result = subprocess.run(command, env=env, capture_output=True, timeout=5)
+            self.assertEqual(result.returncode, 0, result.stderr)
+            self.assertEqual(usage.read_bytes(), before)
+            self.assertIn(b"new CPU report", result.stderr)
+
     def test_double_fork_helper_is_adopted_sampled_and_cleaned(self):
         with tempfile.TemporaryDirectory() as tmp:
             path = Path(tmp)

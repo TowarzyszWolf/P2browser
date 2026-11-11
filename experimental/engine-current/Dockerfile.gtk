@@ -1,0 +1,5 @@
+# syntax=docker/dockerfile:1
+FROM p2browser-engine-current:bookworm
+COPY experimental/engine-current/prepare-gtk-sysroot.sh /usr/local/bin/prepare-gtk-sysroot
+RUN sh /usr/local/bin/prepare-gtk-sysroot
+RUN apt-get update && apt-get install -y --no-install-recommends gettext && rm -rf /var/lib/apt/lists/*

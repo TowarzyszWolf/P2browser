@@ -1,14 +1,15 @@
 #!/bin/sh
 # Integration check inside a disposable Debian 13 amd64 container only.
 set -eu
+version=${VERSION:-0.2.0~alpha1}
 [ "$P2_INSTALL_TEST_CONTAINER" = 1 ] && [ -f /.dockerenv ]
 export DEBIAN_FRONTEND=noninteractive
 test "$(dpkg --print-architecture)" = amd64
 test -z "$(dpkg --print-foreign-architectures)"
 apt-get update
 apt-get install -y --no-install-recommends \
-    /packages/p2browser-diagnostics_0.1.1_all.deb \
-    /packages/p2browser-probe_0.1.1_amd64-trixie.deb \
+    "/packages/p2browser-diagnostics_${version}_all.deb" \
+    "/packages/p2browser-probe_${version}_amd64-trixie.deb" \
     xvfb xauth dbus-x11 librsvg2-common
 test -z "$(dpkg --print-foreign-architectures)"
 test -z "$(dpkg --audit)"

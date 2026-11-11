@@ -1,0 +1,3 @@
+case	status	exit_code	load_finished	fixture_ready	sandbox	memory_pressure	background_reclaimed	ready_elapsed_ms	pss_max_kib	rss_max_kib	vmswap_max_kib	processes_max	pss_missing_samples	samples	root_png	memory_limit_mib	cpu_user_us	cpu_system_us	cpu_total_us	cpu_total_ms
+tabs-baseline	READY	0	true	true	true	false	false	70640	328625	636568	18888	21	0	52	requires_visual_review	0	8439342	7787334	16226676	16226.676
+tabs-pressure	PASS_RECLAIM	0	true	true	true	true	true	32647	222831	342808	0	21	0	57	requires_visual_review	96	8693838	5291735	13985573	13985.573

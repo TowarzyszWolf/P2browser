@@ -6,6 +6,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <sys/prctl.h>
+#include <sys/resource.h>
 #include <sys/types.h>
 #include <sys/wait.h>
 #include <time.h>
@@ -13,6 +14,24 @@
 
 static volatile sig_atomic_t stopping;
 static void stop_requested(int signal_number) { stopping = signal_number; }
+
+static void write_cpu_usage(void)
+{
+    const char *path = getenv("P2_SUPERVISOR_USAGE_FILE");
+    struct rusage usage;
+    FILE *stream;
+    if (!path || !*path) return;
+    if (getrusage(RUSAGE_CHILDREN, &usage) != 0) {
+        perror("child CPU accounting");
+        return;
+    }
+    stream = fopen(path, "wx");
+    if (!stream) { perror("new CPU report"); return; }
+    fprintf(stream, "children_user_us\tchildren_system_us\n%llu\t%llu\n",
+        (unsigned long long)usage.ru_utime.tv_sec * 1000000ULL + (unsigned long long)usage.ru_utime.tv_usec,
+        (unsigned long long)usage.ru_stime.tv_sec * 1000000ULL + (unsigned long long)usage.ru_stime.tv_usec);
+    if (fclose(stream) != 0) perror("CPU report write");
+}
 
 static void clean_children(void)
 {
@@ -108,5 +127,6 @@ int main(int argc, char **argv)
     else if (WIFSIGNALED(status)) result = 128 + WTERMSIG(status);
     else result = 1;
     clean_children();
+    write_cpu_usage();
     return result;
 }

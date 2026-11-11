@@ -5,6 +5,7 @@ PATH=/usr/sbin:/usr/bin:/sbin:/bin
 export PATH
 umask 077
 p2_results=/var/lib/p2-results
+p2_mode=comparison
 
 finish() {
     p2_finish_status=$1
@@ -15,6 +16,11 @@ finish() {
         printf 'P2SUMMARYBEGIN\n'
         cat "$p2_results/summary.tsv"
         printf 'P2SUMMARYEND\n'
+    fi
+    if [ -f "$p2_results/stress/summary.tsv" ]; then
+        printf 'P2STRESSSUMMARYBEGIN\n'
+        cat "$p2_results/stress/summary.tsv"
+        printf 'P2STRESSSUMMARYEND\n'
     fi
     printf 'P2FULLDONE\n'
     sync
@@ -39,6 +45,23 @@ chmod 1777 /tmp
 mkdir "$p2_results" || exit 1
 chown p2test:p2test "$p2_results" /run/user/1000
 chmod 700 "$p2_results" /run/user/1000
+p2_stress_seconds=45
+p2_stress_cases=all
+for p2_arg in $(cat /proc/cmdline); do
+    case $p2_arg in
+        p2seconds=*) p2_stress_seconds=${p2_arg#*=} ;;
+        p2cases=*) p2_stress_cases=${p2_arg#*=} ;;
+    esac
+done
+case $p2_stress_seconds in ''|*[!0-9]*|????*) fail 'invalid stress duration' ;; esac
+[ "$p2_stress_seconds" -ge 15 ] && [ "$p2_stress_seconds" -le 180 ] || fail 'invalid stress duration'
+export P2_STRESS_SECONDS=$p2_stress_seconds
+if [ "$p2_stress_cases" != all ]; then
+    export P2_STRESS_CASES=$p2_stress_cases
+fi
+case " $(cat /proc/cmdline) " in
+    *' p2mode=stress '*) p2_mode=stress ;;
+esac
 trap 'fail interrupted' INT TERM
 
 printf '\nP2 full guest: i386 userspace, Xvfb, local fixture only.\n'
@@ -95,5 +118,11 @@ else
 fi
 printf 'Starting browser suite as p2test; sandbox remains enabled.\n'
 p2_suite_status=0
-su -s /bin/sh p2test -c /usr/local/bin/p2-full-benchmark || p2_suite_status=$?
+if [ "$p2_mode" = stress ]; then
+    mkdir "$p2_results/stress" || fail 'cannot prepare stress results'
+    chown p2test:p2test "$p2_results/stress"
+    su -s /bin/sh p2test -c 'P2_STRESS_RESULTS=/var/lib/p2-results/stress sh /opt/p2browser/emulation/stress-benchmark.sh' || p2_suite_status=$?
+else
+    su -s /bin/sh p2test -c /usr/local/bin/p2-full-benchmark || p2_suite_status=$?
+fi
 finish "$p2_suite_status"

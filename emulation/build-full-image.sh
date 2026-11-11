@@ -28,15 +28,17 @@ dd if=/dev/zero of="$p2_root/swapfile" bs=1M count=512 status=none
 chmod 600 "$p2_root/swapfile"
 mkswap "$p2_root/swapfile"
 printf '/swapfile none swap sw 0 0\n' > "$p2_root/etc/fstab"
-truncate -s 3G "$p2_out/rootfs.ext4"
+truncate -s 2G "$p2_out/rootfs.ext4"
 mkfs.ext4 -F -L p2-experiment -d "$p2_root" "$p2_out/rootfs.ext4"
 printf '%s\n' \
     'guest_architecture=i386' \
     'cpu_model=pentium2' \
     'nominal_ram_mib=384' \
     'swapfile_mib=512' \
-    'rootfs_size_gib=3' \
+    'rootfs_size_gib=2' \
     'root_device=/dev/sda' \
     'guest_init=/usr/local/sbin/p2-full-init' \
     > "$p2_out/profile.txt"
 sha256sum "$p2_out/vmlinuz" "$p2_out/initrd.img" > "$p2_out/BOOT-SHA256SUMS"
+sha256sum "$p2_out/rootfs.ext4" | cut -d ' ' -f 1 > "$p2_out/ROOTFS-SHA256"
+gzip -1 -n "$p2_out/rootfs.ext4"
